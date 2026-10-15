@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 import os
 import stat
+from .i18n import tr
 
 FAT32_MAX = 2**32 - 1
 MIB = 1024**2
@@ -26,39 +27,39 @@ def windows_plan(entries: dict[str, int]) -> WindowsPlan:
         path = PurePosixPath(name)
         if (not name or path.is_absolute() or ".." in path.parts
                 or str(path) != name or size < 0):
-            raise ImageError(f"Percorso immagine non valido: {name}")
+            raise ImageError(tr('Invalid image path: {0}').format(name))
         for index, part in enumerate(path.parts):
             if (any(c in part for c in '\\:*?"<>|') or part.endswith((".", " "))
                     or any(ord(c) < 32 for c in part)
                     or len(part.encode("utf-16-le")) > 510):
-                raise ImageError(f"Nome incompatibile con FAT32: {name}")
+                raise ImageError(tr('Name incompatible with FAT32: {0}').format(name))
             component = "/".join(path.parts[:index + 1])
             key = component.casefold()
             if key in components and components[key] != component:
-                raise ImageError(f"Nomi in conflitto su FAT32: {name}")
+                raise ImageError(tr('Conflicting names on FAT32: {0}').format(name))
             components[key] = component
         key = name.casefold()
         if key in names:
-            raise ImageError(f"Nomi duplicati: {name}")
+            raise ImageError(tr('Duplicate names: {0}').format(name))
         names[key] = name
     required = ("efi/boot/bootx64.efi", "sources/boot.wim")
     if any(k not in names for k in required):
-        raise ImageError("La ISO Windows deve contenere boot UEFI x64 e sources/boot.wim.")
+        raise ImageError(tr('The Windows ISO must contain x64 UEFI boot files and sources/boot.wim.'))
     payloads = [names[k] for k in ("sources/install.wim", "sources/install.esd") if k in names]
     if len(payloads) != 1:
-        raise ImageError("Occorre un solo sources/install.wim oppure install.esd.")
+        raise ImageError(tr('Exactly one sources/install.wim or install.esd is required.'))
     split = None
     for name, size in entries.items():
         if size == 0 and name.casefold() in (*required, "sources/install.wim", "sources/install.esd"):
-            raise ImageError(f"File Windows vuoto: {name}")
+            raise ImageError(tr('Empty Windows file: {0}').format(name))
         if size > FAT32_MAX:
             if name.casefold() != "sources/install.wim":
-                raise ImageError(f"File oltre il limite FAT32: {name}. È supportato lo split di install.wim.")
+                raise ImageError(tr('File exceeds the FAT32 limit: {0}. Only install.wim can be split.').format(name))
             split = name
     if any(k.startswith("sources/install") and k.endswith(".swm") for k in names):
-        raise ImageError("ISO con file .swm preesistenti non supportata in questa versione.")
+        raise ImageError(tr('ISOs with existing .swm files are not supported in this version.'))
     total = sum(entries.values())
-    return WindowsPlan(tuple(sorted(entries.items())), split, total + total // 50 + 64 * MIB)
+    return WindowsPlan(tuple(sorted(entries.items())), split, max(1024**3, total + total // 50 + 64 * MIB))
 
 
 def scan_tree(root: Path) -> dict[str, int]:
@@ -76,7 +77,7 @@ def scan_tree(root: Path) -> dict[str, int]:
                 elif stat.S_ISREG(info.st_mode):
                     entries[path.relative_to(root).as_posix()] = info.st_size
                 else:
-                    raise ImageError(f"Collegamento o file speciale nell'immagine: {path.name}")
+                    raise ImageError(tr('Link or special file in the image: {0}').format(path.name))
     return entries
 
 
@@ -104,4 +105,4 @@ def validate_hybrid(path: Path):
         header = stream.read(512)
     if (len(header) != 512 or header[510:] != b"\x55\xaa"
             or not any(header[446 + 16 * i + 4] for i in range(4))):
-        raise ImageError("Questa ISO non è riconosciuta come ibrida USB. Nessun dato scritto.")
+        raise ImageError(tr('This ISO is not recognized as USB hybrid. No data was written.'))

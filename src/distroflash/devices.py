@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import subprocess
+from .i18n import tr
 
 
 class DeviceError(ValueError):
@@ -40,7 +41,7 @@ def allowed(node):
     for child in descendants(node):
         if child.get("ro") or child.get("busy") or child.get("type") not in {"disk", "part"}:
             return False
-        if child.get("fstype", "").lower() in {"btrfs", "lvm2_member", "crypto_luks", "linux_raid_member", "zfs_member"}:
+        if (child.get("fstype") or "").lower() in {"btrfs", "lvm2_member", "crypto_luks", "linux_raid_member", "zfs_member"}:
             return False
         for mount in child.get("mountpoints") or []:
             if mount and not mount.startswith(("/media/", "/run/media/")):
@@ -49,7 +50,7 @@ def allowed(node):
 
 
 def describe(node):
-    fields = [node.get(k) for k in ("name", "size", "serial", "wwn", "maj:min", "sysfs")]
+    fields = [node.get(k) for k in ("name", "size", "serial", "wwn", "maj:min", "sysfs", "diskseq")]
     identity = hashlib.sha256(json.dumps(fields).encode()).hexdigest()
     return Device(node["name"], int(node["size"]), (node.get("model") or "USB/SD").strip(),
                   node.get("serial") or "", device_number(node["maj:min"]), identity)
@@ -62,14 +63,14 @@ def select_devices(nodes):
 def validate_device(expected, nodes, source_dev, required_bytes):
     node = next((n for n in nodes if n["name"] == expected.path), None)
     if node is None or not allowed(node) or describe(node).identity != expected.identity:
-        raise DeviceError("Dispositivo rimosso, cambiato o non sicuro. Aggiorna l'elenco.")
+        raise DeviceError(tr('Device removed, changed or unsafe. Refresh the list.'))
     for child in descendants(node):
         if device_number(child["maj:min"]) == source_dev:
-            raise DeviceError("Il dispositivo contiene l'immagine sorgente.")
+            raise DeviceError(tr('The device contains the source image.'))
         if any(child.get("mountpoints") or []):
-            raise DeviceError("Smonta prima tutte le partizioni del dispositivo.")
+            raise DeviceError(tr('Unmount all device partitions first.'))
     if expected.size < required_bytes:
-        raise DeviceError("Dispositivo troppo piccolo per l'immagine.")
+        raise DeviceError(tr('The device is too small for this image.'))
     return node
 
 
@@ -83,6 +84,8 @@ def snapshot():
         for node in descendants(top):
             sys = Path("/sys/dev/block") / node["maj:min"]
             node["sysfs"] = str(sys.resolve(strict=True))
+            sequence = sys/"diskseq"
+            node["diskseq"] = sequence.read_text().strip() if sequence.exists() else None
             node["busy"] = any((sys / "holders").iterdir())
             node["fstype"] = node.get("fstype") or ""
     return data
