@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=DistroFlash
+Comment=Write Linux and Windows images to USB drives
+Comment[it]=Scrivi immagini Linux e Windows su dispositivi USB
+Comment[fr]=Écrire des images Linux et Windows sur des clés USB
+Comment[de]=Linux- und Windows-Abbilder auf USB schreiben
+Comment[es]=Escribe imágenes de Linux y Windows en dispositivos USB
+Exec=distroflash
+Icon=drive-removable-media-usb
+Terminal=false
+Categories=System;
+StartupNotify=true
+Keywords=USB;ISO;Windows;Linux;flash;

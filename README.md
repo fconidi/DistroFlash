@@ -1,0 +1,81 @@
+# DistroFlash
+
+A native Linux application for creating Linux and Windows USB installation media.
+
+DistroFlash uses a three-step GTK interface: choose an image, select the USB/SD device,
+then write and verify. It runs as a normal user; UDisks2 and Polkit authorize storage
+operations. No telemetry or online account is required.
+
+## Supported images
+
+- **Linux:** hybrid USB-bootable ISO files and uncompressed IMG, RAW or BIN images.
+- **Windows:** standard Windows 10/11 x64 installation ISOs with UEFI boot files.
+  The device receives a GPT partition table and a FAT32 EFI System Partition.
+  Large `sources/install.wim` files are split into `install.swm`, `install2.swm`, etc.
+  Other files above the FAT32 limit, including oversized `install.esd`, are rejected.
+
+The initial version targets Windows **UEFI x64**. Windows legacy BIOS, ARM64,
+custom ISOs and existing split-WIM source layouts are not supported. Firmware and
+Secure Boot compatibility depend on the original Windows boot files and firmware
+policy; universal boot compatibility is not guaranteed. There is no persistence.
+
+## Installation
+
+On Debian, Ubuntu or SysLinuxOS, install the downloaded Debian package:
+
+```sh
+sudo apt install ./distroflash_0.1.0_all.deb
+```
+
+Launch **DistroFlash** from the applications menu or run `distroflash`.
+Do not launch the application with sudo. An active desktop Polkit authentication
+agent must be available.
+
+To run directly from the source directory:
+
+```sh
+sudo apt install python3-gi gir1.2-gtk-3.0 udisks2 dosfstools wimtools util-linux
+PYTHONPATH=src /usr/bin/python3 -m distroflash
+```
+
+To build the Debian package, run `/usr/bin/python3 build-deb.py`.
+The package is written to `~/.cache/distroflash/packages/`.
+
+## Using DistroFlash
+
+1. Select an image. Windows files are checked before any destination is erased.
+2. Select the USB/SD device. Use **Unmount partitions** if it is mounted.
+3. Select **Write and verify**, then type the displayed device path to confirm erasure.
+4. Wait for verification to finish, then use **Eject**.
+
+**All data on the selected destination will be erased.** Cancellation leaves the
+media incomplete; recreate it before use. Internal disks, devices with active
+storage mappings, Btrfs filesystems, system mounts and the source-image device
+are excluded. Refresh the device list after connecting or removing media.
+
+Large Windows WIM files need temporary free space in `~/.cache/distroflash/` roughly
+equal to the WIM size. Temporary split files are removed when the image is released
+or the application closes normally.
+
+## Languages
+
+The interface, progress and application error messages automatically follow the
+system language: **English, Italian, French, German and Spanish**. English is the
+fallback for unsupported locales. `LC_ALL`, `LC_MESSAGES`, `LANG` and the `LANGUAGE`
+preference list are respected; the C/POSIX locale uses English. Messages returned
+by system services and external tools follow those tools’ own locale settings.
+
+`distroflash --version` prints the version; `distroflash --list` lists eligible
+USB/SD devices without changing them.
+
+## Italiano
+
+DistroFlash crea chiavette USB Linux e Windows con interfaccia GTK, controlli sui
+dispositivi e verifica finale. Le ISO Windows vengono preparate per **UEFI x64**;
+i file `install.wim` grandi vengono suddivisi automaticamente. Nessuna persistenza.
+La lingua viene rilevata automaticamente, con inglese predefinito e supporto
+italiano, francese, tedesco e spagnolo.
+
+## License
+
+Copyright © 2026 Franco Conidi. Licensed under GPL-3.0-or-later; see [LICENSE](LICENSE).
