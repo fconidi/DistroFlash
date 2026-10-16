@@ -61,7 +61,7 @@ def capacity(size):
 
 class Window(Gtk.ApplicationWindow):
     def __init__(self, application):
-        super().__init__(application=application, title="DistroFlash")
+        super().__init__(application=application, title=f"DistroFlash {__version__}")
         self.set_default_size(780, 740)
         self.set_name("distroflash")
         self.style = Gtk.CssProvider()
@@ -80,9 +80,6 @@ class Window(Gtk.ApplicationWindow):
         self.phase_started = time.monotonic()
         self.connect("delete-event", self.on_close)
 
-        header = Gtk.HeaderBar(title="DistroFlash", subtitle=tr('Linux and Windows · {0}').format(__version__))
-        header.set_show_close_button(True)
-        self.set_titlebar(header)
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.add(scroll)

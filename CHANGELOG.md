@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- Use the system title bar so window controls follow the desktop's window decoration theme.
+
 ## 0.2.1
 
 - Organize the interface into three numbered sections with clearer controls and progress.

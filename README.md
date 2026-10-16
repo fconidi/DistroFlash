@@ -27,7 +27,7 @@ policy; universal boot compatibility is not guaranteed. There is no persistence.
 On Debian, Ubuntu or SysLinuxOS, install the downloaded Debian package:
 
 ```sh
-sudo apt install ./distroflash_0.2.1_all.deb
+sudo apt install ./distroflash_0.2.2_all.deb
 ```
 
 Launch **DistroFlash** from the applications menu or run `distroflash`.
