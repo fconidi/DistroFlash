@@ -1,5 +1,7 @@
 # DistroFlash
 
+<img src="src/distroflash/logo.svg" alt="DistroFlash logo" width="96">
+
 A native Linux application for creating Linux and Windows USB installation media.
 
 DistroFlash uses a three-step GTK interface: choose an image, select the USB/SD device,
@@ -24,7 +26,7 @@ policy; universal boot compatibility is not guaranteed. There is no persistence.
 On Debian, Ubuntu or SysLinuxOS, install the downloaded Debian package:
 
 ```sh
-sudo apt install ./distroflash_0.1.0_all.deb
+sudo apt install ./distroflash_0.1.1_all.deb
 ```
 
 Launch **DistroFlash** from the applications menu or run `distroflash`.
@@ -43,10 +45,16 @@ The package is written to `~/.cache/distroflash/packages/`.
 
 ## Using DistroFlash
 
-1. Select an image. Windows files are checked before any destination is erased.
+1. Select an image. Windows archive metadata is checked before any destination is erased.
+   Enable **Deep Windows integrity check (slower)** in the image chooser for a full
+   archive check, including decompression and internal checksums.
 2. Select the USB/SD device. Use **Unmount partitions** if it is mounted.
 3. Select **Write and verify**, then type the displayed device path to confirm erasure.
 4. Wait for verification to finish, then use **Eject**.
+
+Every written file is read back and checked with SHA256, including split Windows
+archives. This confirms the copy matches its source. The optional deep check also
+detects corruption inside the source Windows archives; metadata checks alone do not.
 
 **All data on the selected destination will be erased.** Cancellation leaves the
 media incomplete; recreate it before use. Internal disks, devices with active
@@ -75,6 +83,9 @@ dispositivi e verifica finale. Le ISO Windows vengono preparate per **UEFI x64**
 i file `install.wim` grandi vengono suddivisi automaticamente. Nessuna persistenza.
 La lingua viene rilevata automaticamente, con inglese predefinito e supporto
 italiano, francese, tedesco e spagnolo.
+La preparazione Windows usa controlli rapidi dei metadati; il controllo approfondito
+degli archivi è facoltativo nella finestra di scelta dell’immagine. La verifica
+SHA256 dei file scritti sulla chiavetta resta sempre attiva.
 
 ## License
 

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 128 128">
+  <title>DistroFlash</title>
+  <rect x="4" y="4" width="120" height="120" rx="30" fill="#102b40"/>
+  <path d="M48 21h32v29H48z" fill="#dcecf1"/>
+  <path d="M55 26v12m18-12v12" stroke="#102b40" stroke-width="6"/>
+  <rect x="35" y="43" width="58" height="65" rx="15" fill="#23c4ae"/>
+  <path d="M70 49 48 79h16l-7 25 27-36H67z" fill="#102b40"/>
+  <path d="M104 23 87 47h12l-5 18 22-28h-13z" fill="#ffbf47"/>
+</svg>

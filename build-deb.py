@@ -24,6 +24,11 @@ def main():
         package.mkdir(parents=True)
         for module in (source/"src/distroflash").glob("*.py"):
             shutil.copyfile(module, package/module.name)
+        logo = source/"src/distroflash/logo.svg"
+        shutil.copyfile(logo, package/"logo.svg")
+        icons = root/"usr/share/icons/hicolor/scalable/apps"
+        icons.mkdir(parents=True)
+        shutil.copyfile(logo, icons/"org.syslinuxos.DistroFlash.svg")
         binary = root/"usr/bin/distroflash"
         binary.parent.mkdir(parents=True)
         shutil.copyfile(source/"packaging/distroflash", binary)

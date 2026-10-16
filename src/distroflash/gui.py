@@ -40,9 +40,19 @@ class Window(Gtk.ApplicationWindow):
         self.set_titlebar(header)
         layout = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
         self.add(layout)
-        intro = Gtk.Label(label=tr('Create a bootable USB in three steps.'), xalign=0)
-        intro.get_style_context().add_class("title")
-        layout.pack_start(intro, False, False, 0)
+        logo = Path(__file__).with_name("logo.svg")
+        self.set_icon_from_file(str(logo))
+        brand = Gtk.Box(spacing=16)
+        symbol = Gtk.Image.new_from_file(str(logo))
+        symbol.get_accessible().set_name("DistroFlash")
+        brand.pack_start(symbol, False, False, 0)
+        description = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
+        title = Gtk.Label(xalign=0)
+        title.set_markup('<span size="xx-large" weight="bold">DistroFlash</span>')
+        description.pack_start(title, False, False, 0)
+        description.pack_start(self.label(tr('Create a bootable USB in three steps.')), False, False, 0)
+        brand.pack_start(description, True, True, 0)
+        layout.pack_start(brand, False, False, 0)
         self.choose = Gtk.Button.new_with_mnemonic(tr('1. Choose _image…'))
         self.choose.connect("clicked", self.choose_image)
         layout.pack_start(self.choose, False, False, 0)
@@ -111,6 +121,8 @@ class Window(Gtk.ApplicationWindow):
     def pulse(self):
         if self.busy and self.indeterminate:
             self.bar.pulse()
+            elapsed = int(time.monotonic() - self.phase_started)
+            self.bar.set_text(f"{self.phase} · {elapsed // 60:02d}:{elapsed % 60:02d}")
         return True
 
     def report(self, phase, done=0, total=0):
@@ -176,8 +188,13 @@ class Window(Gtk.ApplicationWindow):
             image_filter.add_pattern("*." + extension)
             image_filter.add_pattern("*." + extension.upper())
         dialog.add_filter(image_filter)
+        deep_check = Gtk.CheckButton.new_with_mnemonic(tr('_Deep Windows integrity check (slower)'))
+        deep_check.set_tooltip_text(tr('Fully decompress and check Windows archives before writing. Written USB files are always verified.'))
+        dialog.set_extra_widget(deep_check)
+        deep_check.show()
         response = dialog.run()
         filename = dialog.get_filename()
+        verify_archives = deep_check.get_active()
         dialog.destroy()
         if response != Gtk.ResponseType.OK:
             return
@@ -186,7 +203,8 @@ class Window(Gtk.ApplicationWindow):
         def prepare():
             if previous:
                 previous.close()
-            return PreparedImage(filename, UDisks(), self.cancel, self.report)
+            return PreparedImage(filename, UDisks(), self.cancel, self.report,
+                                 deep_check=verify_archives)
 
         def ready(image):
             self.image = image
