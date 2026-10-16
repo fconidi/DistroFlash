@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib, Gtk
+from gi.repository import GLib, Gtk, Pango
 
 from . import __version__
 from .devices import (DeviceError, descendants, device_number, select_devices,
@@ -16,6 +16,45 @@ from .udisks import UDisks
 from .i18n import tr
 
 
+STYLE = b"""
+#distroflash { background-color: @theme_bg_color; }
+#distroflash .brand {
+    background-color: #102b40; color: #f4fafb;
+    border-radius: 14px; padding: 20px;
+}
+#distroflash .brand-title { font-size: 24pt; font-weight: 700; }
+#distroflash .brand-copy { color: #d3e7ed; }
+#distroflash .stage {
+    background-color: @theme_base_color;
+    border: 1px solid alpha(@theme_fg_color, 0.18);
+    border-radius: 10px; padding: 16px;
+}
+#distroflash .stage-title { font-size: 12pt; font-weight: 600; }
+#distroflash .step {
+    background-color: #102b40; color: #ffffff;
+    border-radius: 16px; min-width: 30px; min-height: 30px;
+    font-weight: 700;
+}
+#distroflash .hint { color: mix(@theme_text_color, @theme_base_color, 0.2); }
+#distroflash button { min-height: 30px; padding: 5px 14px; border-radius: 6px; }
+#distroflash combobox button { min-height: 32px; }
+#distroflash button:focus, #distroflash combobox:focus {
+    outline: 2px solid @theme_selected_bg_color; outline-offset: 2px;
+}
+#distroflash button.suggested-action:not(:disabled) {
+    background-image: none; background-color: #087f78;
+    color: #ffffff; border-color: #087f78; text-shadow: none;
+}
+#distroflash button.suggested-action:hover:not(:disabled) { background-color: #066b65; }
+#distroflash button.suggested-action:active:not(:disabled) { background-color: #055952; }
+#distroflash progressbar trough { min-height: 8px; border-radius: 4px; }
+#distroflash progressbar progress {
+    min-height: 8px; background-image: none; background-color: #087f78;
+    border-color: #087f78; border-radius: 4px;
+}
+"""
+
+
 def capacity(size):
     return f"{size / 1024**3:.1f} GiB"
 
@@ -23,8 +62,14 @@ def capacity(size):
 class Window(Gtk.ApplicationWindow):
     def __init__(self, application):
         super().__init__(application=application, title="DistroFlash")
-        self.set_default_size(700, 590)
-        self.set_border_width(24)
+        self.set_default_size(780, 740)
+        self.set_name("distroflash")
+        self.style = Gtk.CssProvider()
+        self.style.load_from_data(STYLE)
+        Gtk.StyleContext.add_provider_for_screen(
+            self.get_screen(), self.style, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        self.connect("destroy", lambda *_: Gtk.StyleContext.remove_provider_for_screen(
+            self.get_screen(), self.style))
         self.image = None
         self.devices = []
         self.busy = False
@@ -38,38 +83,53 @@ class Window(Gtk.ApplicationWindow):
         header = Gtk.HeaderBar(title="DistroFlash", subtitle=tr('Linux and Windows · {0}').format(__version__))
         header.set_show_close_button(True)
         self.set_titlebar(header)
-        layout = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
-        self.add(layout)
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.add(scroll)
+        layout = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        layout.set_border_width(20)
+        scroll.add(layout)
         logo = Path(__file__).with_name("logo.svg")
         self.set_icon_from_file(str(logo))
         brand = Gtk.Box(spacing=16)
+        brand.get_style_context().add_class("brand")
         symbol = Gtk.Image.new_from_file(str(logo))
         symbol.get_accessible().set_name("DistroFlash")
         brand.pack_start(symbol, False, False, 0)
         description = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
         title = Gtk.Label(xalign=0)
-        title.set_markup('<span size="xx-large" weight="bold">DistroFlash</span>')
+        title.set_text("DistroFlash")
+        title.get_style_context().add_class("brand-title")
         description.pack_start(title, False, False, 0)
-        description.pack_start(self.label(tr('Create a bootable USB in three steps.')), False, False, 0)
+        tagline = self.label(tr('Create a bootable USB in three steps.'))
+        tagline.set_selectable(False)
+        tagline.get_style_context().add_class("brand-copy")
+        description.pack_start(tagline, False, False, 0)
         brand.pack_start(description, True, True, 0)
         layout.pack_start(brand, False, False, 0)
-        self.choose = Gtk.Button.new_with_mnemonic(tr('1. Choose _image…'))
+        source, source_heading = self.stage(layout, "1", tr('Image'))
+        self.choose = Gtk.Button.new_with_mnemonic(tr('Choose _image…'))
         self.choose.connect("clicked", self.choose_image)
-        layout.pack_start(self.choose, False, False, 0)
+        source_heading.pack_end(self.choose, False, False, 0)
         self.image_label = self.label(tr('Linux/Windows ISO, or IMG, RAW and BIN.'))
-        layout.pack_start(self.image_label, False, False, 0)
+        self.image_label.get_style_context().add_class("hint")
+        source.pack_start(self.image_label, False, False, 0)
 
-        row = Gtk.Box(spacing=8)
-        row.pack_start(Gtk.Label(label=tr('2. USB/SD device'), xalign=0), True, True, 0)
+        destination, row = self.stage(layout, "2", tr('USB/SD device'))
         self.refresh_button = Gtk.Button.new_with_mnemonic(tr('_Refresh'))
         self.refresh_button.connect("clicked", self.refresh)
         row.pack_end(self.refresh_button, False, False, 0)
-        layout.pack_start(row, False, False, 0)
         self.combo = Gtk.ComboBoxText()
+        self.combo.set_hexpand(True)
+        self.combo.get_accessible().set_name(tr('USB/SD device'))
+        cell = self.combo.get_cells()[0]
+        cell.set_property("ellipsize", Pango.EllipsizeMode.END)
+        cell.set_property("max-width-chars", 44)
         self.combo.connect("changed", lambda _: self.controls())
-        layout.pack_start(self.combo, False, False, 0)
+        destination.pack_start(self.combo, False, False, 0)
         self.device_hint = self.label(tr('Internal disks and devices used by the system are excluded.'))
-        layout.pack_start(self.device_hint, False, False, 0)
+        self.device_hint.get_style_context().add_class("hint")
+        destination.pack_start(self.device_hint, False, False, 0)
         row = Gtk.Box(spacing=8)
         self.unmount = Gtk.Button.new_with_mnemonic(tr('_Unmount partitions'))
         self.unmount.connect("clicked", self.unmount_selected)
@@ -77,31 +137,50 @@ class Window(Gtk.ApplicationWindow):
         self.eject = Gtk.Button.new_with_mnemonic(tr('_Eject'))
         self.eject.connect("clicked", self.eject_selected)
         row.pack_start(self.eject, False, False, 0)
-        layout.pack_start(row, False, False, 0)
-        layout.pack_start(Gtk.Separator(), False, False, 0)
+        destination.pack_start(row, False, False, 0)
+        writing, _ = self.stage(layout, "3", tr('Write and verify'))
         self.status = self.label(tr('Select an image to begin.'))
-        layout.pack_start(self.status, False, False, 0)
+        writing.pack_start(self.status, False, False, 0)
         self.bar = Gtk.ProgressBar(show_text=True)
-        layout.pack_start(self.bar, False, False, 0)
+        writing.pack_start(self.bar, False, False, 0)
+        warning = self.label(tr('Writing erases the selected device. No persistence.'))
+        warning.get_style_context().add_class("hint")
+        writing.pack_start(warning, False, False, 0)
         row = Gtk.Box(spacing=8)
         self.stop = Gtk.Button.new_with_mnemonic(tr('_Cancel'))
         self.stop.connect("clicked", self.stop_work)
         row.pack_start(self.stop, False, False, 0)
-        self.start = Gtk.Button.new_with_mnemonic(tr('3. _Write and verify'))
+        self.start = Gtk.Button.new_with_mnemonic(tr('_Write and verify'))
         self.start.get_style_context().add_class("suggested-action")
         self.start.connect("clicked", self.start_write)
         row.pack_end(self.start, False, False, 0)
-        layout.pack_end(row, False, False, 0)
-        layout.pack_end(self.label(tr('Writing erases the selected device. No persistence.')),
-                        False, False, 0)
+        writing.pack_start(row, False, False, 0)
         self.controls()
         GLib.timeout_add(100, self.pulse)
         GLib.idle_add(self.refresh)
 
     @staticmethod
+    def stage(layout, number, text):
+        panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        panel.get_style_context().add_class("stage")
+        heading = Gtk.Box(spacing=12)
+        step = Gtk.Label(label=number)
+        step.get_style_context().add_class("step")
+        step.set_valign(Gtk.Align.CENTER)
+        heading.pack_start(step, False, False, 0)
+        title = Gtk.Label(label=text, xalign=0)
+        title.get_style_context().add_class("stage-title")
+        heading.pack_start(title, False, False, 0)
+        panel.pack_start(heading, False, False, 0)
+        layout.pack_start(panel, False, False, 0)
+        return panel, heading
+
+    @staticmethod
     def label(text):
         label = Gtk.Label(label=text, xalign=0)
         label.set_line_wrap(True)
+        label.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
+        label.set_max_width_chars(64)
         label.set_selectable(True)
         return label
 
@@ -110,6 +189,7 @@ class Window(Gtk.ApplicationWindow):
         return self.devices[index] if 0 <= index < len(self.devices) else None
 
     def controls(self):
+        self.combo.set_tooltip_text(self.combo.get_active_text())
         for widget in (self.choose, self.refresh_button, self.combo):
             widget.set_sensitive(not self.busy)
         target = self.selected()

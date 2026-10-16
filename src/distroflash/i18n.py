@@ -24,7 +24,17 @@ def tr(message, language=None):
     return MESSAGES.get(message, {}).get(language or LANGUAGE, message)
 
 
-MESSAGES = {'Invalid image path: {0}': {'it': 'Percorso immagine non valido: {0}',
+MESSAGES = {
+ 'Image': {'en': 'Image', 'it': 'Immagine', 'fr': 'Image', 'de': 'Abbild', 'es': 'Imagen'},
+ 'Choose _image…': {'en': 'Choose _image…', 'it': 'Scegli _immagine…',
+                    'fr': 'Choisir une _image…', 'de': '_Abbild wählen…', 'es': 'Elegir _imagen…'},
+ 'USB/SD device': {'en': 'USB/SD device', 'it': 'Dispositivo USB/SD',
+                   'fr': 'Périphérique USB/SD', 'de': 'USB/SD-Gerät', 'es': 'Dispositivo USB/SD'},
+ 'Write and verify': {'en': 'Write and verify', 'it': 'Scrivi e verifica',
+                      'fr': 'Écrire et vérifier', 'de': 'Schreiben und prüfen', 'es': 'Escribir y verificar'},
+ '_Write and verify': {'en': '_Write and verify', 'it': '_Scrivi e verifica',
+                       'fr': 'Écrire et _vérifier', 'de': '_Schreiben und prüfen', 'es': '_Escribir y verificar'},
+ 'Invalid image path: {0}': {'it': 'Percorso immagine non valido: {0}',
                              'en': 'Invalid image path: {0}',
                              'fr': 'Chemin d’image invalide : {0}',
                              'de': 'Ungültiger Abbildpfad: {0}',

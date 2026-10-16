@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Organize the interface into three numbered sections with clearer controls and progress.
+- Refine the application logo and introduce a coordinated navy and teal appearance.
+- Keep content accessible in smaller windows with scrolling and wrapped image names.
+
 ## 0.2.0
 
 - Create Windows media with a main NTFS partition and a small UEFI:NTFS boot partition.
