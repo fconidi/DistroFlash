@@ -9,7 +9,7 @@ import threading
 import unittest
 from unittest.mock import patch
 
-from distroflash.engine import PreparedImage, copy_files, run_tool, verify_files
+from distroflash.engine import PreparedImage, copy_files, run_tool, verify_files, _write_windows
 from distroflash.images import windows_plan
 from distroflash.streams import Cancelled
 
@@ -56,7 +56,13 @@ class WindowsIntegrationTests(unittest.TestCase):
             def force_split(entries):
                 return replace(original_plan(entries), split_wim="sources/install.wim")
 
-            with patch("distroflash.engine.windows_plan", force_split), patch("distroflash.engine.WIM_PART_MIB", 1):
+            def fast_tool(arguments, cancel=None):
+                self.assertNotEqual(arguments[1], "verify", "Default preparation must not decompress the WIM")
+                self.assertNotIn("--check", arguments)
+                return run_tool(arguments, cancel)
+
+            with patch("distroflash.engine.windows_plan", force_split), patch("distroflash.engine.WIM_PART_MIB", 1), \
+                    patch("distroflash.engine.run_tool", side_effect=fast_tool):
                 image = PreparedImage(image_file, storage)
             staging = image.entries[-1][0].parent
             try:
@@ -75,6 +81,34 @@ class WindowsIntegrationTests(unittest.TestCase):
             self.assertFalse(storage.active)
             self.assertFalse(staging.exists())
 
+    def test_deep_check_detects_corrupt_payload_that_metadata_check_does_not(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            payload = root/"payload"
+            payload.mkdir()
+            marker = b"unique uncompressed WIM payload" * 100
+            (payload/"data").write_bytes(marker)
+            iso = root/"iso"
+            (iso/"sources").mkdir(parents=True)
+            (iso/"efi/boot").mkdir(parents=True)
+            (iso/"efi/boot/bootx64.efi").write_bytes(b"fixture")
+            wim = iso/"sources/install.wim"
+            subprocess.run(["wimlib-imagex", "capture", str(payload), str(wim),
+                            "--compress=none", "--no-acls"], check=True, stdout=subprocess.DEVNULL)
+            shutil.copyfile(wim, iso/"sources/boot.wim")
+            data = bytearray(wim.read_bytes())
+            offset = data.index(marker)
+            data[offset] ^= 1
+            wim.write_bytes(data)
+            source = root/"image.iso"
+            source.write_bytes(b"container")
+            storage = MountedDirectory(iso)
+            image = PreparedImage(source, storage)
+            image.close()
+            with self.assertRaises(ValueError):
+                PreparedImage(source, storage, deep_check=True)
+            self.assertFalse(storage.active)
+
     def test_invalid_wim_fails_before_any_device_operation(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -88,6 +122,48 @@ class WindowsIntegrationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 PreparedImage(source, storage)
             self.assertFalse(storage.active)
+
+
+class WindowsWriteTests(unittest.TestCase):
+    def test_readback_remains_required_without_another_wim_decompression(self):
+        from types import SimpleNamespace
+        for corrupt in (False, True):
+            with self.subTest(corrupt=corrupt), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                source, target = root/"source", root/"usb"
+                source.write_bytes(b"split archive bytes")
+                target.mkdir()
+                image = SimpleNamespace(entries=[(source, "install.swm", source.stat().st_size)],
+                                        plan=SimpleNamespace(split_wim="sources/install.wim"))
+                mounts = []
+
+                class Storage:
+                    def format_windows(self, *args):
+                        return "partition"
+
+                    def mount(self, part, readonly=False):
+                        mounts.append(readonly)
+                        if readonly and corrupt:
+                            data = bytearray((target/"install.swm").read_bytes())
+                            data[0] ^= 1
+                            (target/"install.swm").write_bytes(data)
+                        return target
+
+                    def properties(self, *args):
+                        return {"DeviceNumber": target.stat().st_dev}
+
+                    def unmount(self, part):
+                        pass
+
+                with patch("distroflash.engine.run_tool", side_effect=AssertionError("Redundant WIM pass")):
+                    if corrupt:
+                        with self.assertRaises(OSError):
+                            _write_windows(image, "device", Storage(), lambda: None, None, lambda *a: None)
+                    else:
+                        _write_windows(image, "device", Storage(), lambda: None, None, lambda *a: None)
+                        self.assertEqual((target/"install.swm").read_bytes(), source.read_bytes())
+                self.assertEqual(mounts, [False, True])
+
 
 
 class PreparationTests(unittest.TestCase):

@@ -51,7 +51,7 @@ def fingerprint(fd):
 
 
 class PreparedImage:
-    def __init__(self, path, storage, cancel=None, status=lambda message: None):
+    def __init__(self, path, storage, cancel=None, status=lambda message: None, *, deep_check=False):
         self.path = Path(path).expanduser().resolve(strict=True)
         self.storage = storage
         self.stack = ExitStack()
@@ -74,7 +74,7 @@ class PreparedImage:
                     self.kind = "windows"
                     self.plan = windows_plan(scan_tree(self.root))
                     self.required_bytes = self.plan.required_bytes
-                    self._prepare_windows(cancel, status)
+                    self._prepare_windows(cancel, status, deep_check)
                 else:
                     validate_hybrid(pinned)
             elif self.path.suffix.lower() not in {".img", ".raw", ".bin"}:
@@ -85,14 +85,15 @@ class PreparedImage:
             self.close()
             raise
 
-    def _prepare_windows(self, cancel, status):
+    def _prepare_windows(self, cancel, status, deep_check):
         if not shutil.which("wimlib-imagex"):
             raise ImageError(tr('Windows support requires wimtools (wimlib-imagex).'))
         lookup = {name.casefold(): name for name, _ in self.plan.files}
-        status(tr('Checking Windows file integrity…'))
+        status(tr('Checking Windows file integrity…') if deep_check else tr('Checking Windows image metadata…'))
         for key in ("sources/boot.wim", "sources/install.wim", "sources/install.esd"):
             if key in lookup:
-                run_tool(["wimlib-imagex", "verify", str(self.root/lookup[key])], cancel)
+                run_tool(["wimlib-imagex", "verify" if deep_check else "info",
+                          str(self.root/lookup[key])], cancel)
         self.entries = [(self.root/name, name, size) for name, size in self.plan.files
                         if name != self.plan.split_wim]
         if self.plan.split_wim:
@@ -104,12 +105,10 @@ class PreparedImage:
             staging = Path(self.stack.enter_context(tempfile.TemporaryDirectory(
                 prefix="windows-", dir=cache_directory())))
             run_tool(["wimlib-imagex", "split", str(original), str(staging/"install.swm"),
-                      str(WIM_PART_MIB), "--check"], cancel)
+                      str(WIM_PART_MIB)], cancel)
             parts = sorted(staging.glob("install*.swm"))
             if not parts or any(p.stat().st_size > FAT32_MAX for p in parts):
                 raise ImageError(tr('The WIM cannot be split into FAT32-compatible files.'))
-            run_tool(["wimlib-imagex", "verify", str(staging/"install.swm"),
-                      "--ref=" + str(staging/"install*.swm")], cancel)
             parent = Path(self.plan.split_wim).parent
             self.entries += [(part, (parent/part.name).as_posix(), part.stat().st_size) for part in parts]
             total = sum(size for _, _, size in self.entries)
@@ -189,7 +188,7 @@ def _write_windows(image, path, storage, guard, cancel, report):
             raise DeviceError(tr('Not enough FAT32 space after formatting.'))
         manifest = copy_files(image.entries, root, cancel,
                               lambda n, total: report(tr('Copying Windows'), n, total))
-        # Unmount and remount readonly before verifying files and split archives.
+        # Read back every copied file, including split archives, using its SHA256.
         storage.unmount(part)
         mounted = False
         checkpoint(cancel)
@@ -198,10 +197,6 @@ def _write_windows(image, path, storage, guard, cancel, report):
         if root.stat().st_dev != expected:
             raise DeviceError(tr('The partition changed during verification.'))
         verify_files(root, manifest, cancel, lambda n, total: report(tr('Verifying Windows'), n, total))
-        if image.plan.split_wim:
-            parent = root/Path(image.plan.split_wim).parent
-            run_tool(["wimlib-imagex", "verify", str(parent/"install.swm"),
-                      "--ref=" + str(parent/"install*.swm")], cancel)
     finally:
         if mounted:
             storage.unmount(part)

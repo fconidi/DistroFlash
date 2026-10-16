@@ -667,3 +667,28 @@ MESSAGES["The created filesystem is not FAT32. No Windows files were copied."] =
     "de": "Das erstellte Dateisystem ist nicht FAT32. Es wurden keine Windows-Dateien kopiert.",
     "es": "El sistema creado no es FAT32. No se han copiado archivos de Windows.",
 }
+
+
+MESSAGES.update({
+    'Checking Windows image metadata…': {
+        'en': 'Checking Windows image metadata…',
+        'it': 'Controllo metadati immagine Windows…',
+        'fr': 'Vérification des métadonnées de l’image Windows…',
+        'de': 'Metadaten des Windows-Abbilds werden geprüft…',
+        'es': 'Comprobando los metadatos de la imagen de Windows…',
+    },
+    '_Deep Windows integrity check (slower)': {
+        'en': '_Deep Windows integrity check (slower)',
+        'it': 'Controllo _approfondito integrità Windows (più lento)',
+        'fr': 'Vérification _approfondie de l’intégrité Windows (plus lente)',
+        'de': '_Gründliche Windows-Integritätsprüfung (langsamer)',
+        'es': 'Comprobación _exhaustiva de integridad de Windows (más lenta)',
+    },
+    'Fully decompress and check Windows archives before writing. Written USB files are always verified.': {
+        'en': 'Fully decompress and check Windows archives before writing. Written USB files are always verified.',
+        'it': 'Decomprime e controlla tutti gli archivi Windows prima della scrittura. I file scritti sulla USB vengono sempre verificati.',
+        'fr': 'Décompresse et vérifie entièrement les archives Windows avant l’écriture. Les fichiers écrits sur la clé USB sont toujours vérifiés.',
+        'de': 'Windows-Archive vor dem Schreiben vollständig dekomprimieren und prüfen. Geschriebene USB-Dateien werden immer überprüft.',
+        'es': 'Descomprime y comprueba todos los archivos de Windows antes de escribir. Los archivos escritos en la USB siempre se verifican.',
+    },
+})
