@@ -9,6 +9,7 @@ import os
 import time
 from gi.repository import Gio, GLib
 from .i18n import tr
+from .boot import BOOT_PART_BYTES
 
 BUS = "org.freedesktop.UDisks2"
 BASE = "/org/freedesktop/UDisks2"
@@ -112,14 +113,36 @@ class UDisks:
         checkpoint()
         self.wait_interface(path, "PartitionTable")
         guard()
-        # Native FAT32 EFI System Partition: no downloaded bootloader needed.
-        result, _ = self.call(path, "PartitionTable", "CreatePartitionAndFormat",
-                              "(ttssa{sv}sa{sv})",
-                              (1024**2, 0, "c12a7328-f81f-11d2-ba4b-00a0c93ec93b",
-                               "Windows", {}, "vfat", options(label="DISTROFLASH")))
-        part = result[0]
-        self.wait_interface(part, "Filesystem")
-        version = self.properties(part, "Block").get("IdVersion")
-        if version != "FAT32":
-            raise RuntimeError(tr("The created filesystem is not FAT32. No Windows files were copied."))
-        return part
+        mib = 1024**2
+        size = self.properties(path, "Block")["Size"]
+        boot_offset = (size - BOOT_PART_BYTES - mib) // mib * mib
+        if boot_offset <= mib:
+            raise RuntimeError(tr('The device is too small for this image.'))
+        # Reserve the final ESP before creating filesystems, so automount cannot
+        # interrupt the partition-table operations. Same layout as UEFI:NTFS.
+        # https://github.com/pbatard/uefi-ntfs#overview
+        parts = []
+        for offset, length, kind, name in (
+            (mib, boot_offset - mib, "ebd0a0a2-b9e5-4433-87c0-68b6b72699c7", "Windows"),
+            (boot_offset, BOOT_PART_BYTES, "c12a7328-f81f-11d2-ba4b-00a0c93ec93b", "UEFI_NTFS"),
+        ):
+            guard()
+            checkpoint()
+            result, _ = self.call(path, "PartitionTable", "CreatePartition", "(ttssa{sv})",
+                                  (offset, length, kind, name, {}))
+            part = result[0]
+            self.wait_interface(part, "Partition")
+            parts.append(part)
+        for part, filesystem, label in ((parts[1], "vfat", "UEFI_NTFS"),
+                                        (parts[0], "ntfs", "DISTROFLASH")):
+            checkpoint()
+            if part == parts[0] and self.properties(parts[1], "Filesystem").get("MountPoints"):
+                self.unmount(parts[1])
+            guard()
+            if self.properties(part, "Partition")["Table"] != path:
+                raise RuntimeError(tr('The partition changed during verification.'))
+            self.call(part, "Block", "Format", "(sa{sv})", (filesystem, options(label=label)))
+            self.wait_interface(part, "Filesystem")
+            if self.properties(part, "Block").get("IdType") != filesystem:
+                raise RuntimeError(tr('The created filesystem does not match the Windows layout.'))
+        return tuple(parts)

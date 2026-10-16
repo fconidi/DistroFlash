@@ -208,7 +208,7 @@ class Window(Gtk.ApplicationWindow):
 
         def ready(image):
             self.image = image
-            kind = tr('Windows · UEFI x64') if image.kind == "windows" else tr('Linux / raw image')
+            kind = tr('Windows · UEFI x64 · NTFS') if image.kind == "windows" else tr('Linux / raw image')
             self.image_label.set_text(tr('{0}\n{1} · at least {2}').format(Path(filename).name, kind, capacity(image.required_bytes)))
             self.status.set_text(tr('Image ready. Select the device and unmount its partitions.'))
             self.refresh()

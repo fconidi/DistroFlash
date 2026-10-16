@@ -692,3 +692,16 @@ MESSAGES.update({
         'es': 'Descomprime y comprueba todos los archivos de Windows antes de escribir. Los archivos escritos en la USB siempre se verifican.',
     },
 })
+
+
+MESSAGES.update({
+    'Preparing Windows NTFS + UEFI': {'en': 'Preparing Windows NTFS + UEFI', 'it': 'Preparazione Windows NTFS + UEFI', 'fr': 'Préparation Windows NTFS + UEFI', 'de': 'Windows NTFS + UEFI wird vorbereitet', 'es': 'Preparando Windows NTFS + UEFI'},
+    'Installing UEFI:NTFS': {'en': 'Installing UEFI:NTFS', 'it': 'Installazione UEFI:NTFS', 'fr': 'Installation d’UEFI:NTFS', 'de': 'UEFI:NTFS wird installiert', 'es': 'Instalando UEFI:NTFS'},
+    'Verifying UEFI:NTFS': {'en': 'Verifying UEFI:NTFS', 'it': 'Verifica UEFI:NTFS', 'fr': 'Vérification d’UEFI:NTFS', 'de': 'UEFI:NTFS wird überprüft', 'es': 'Verificando UEFI:NTFS'},
+    'Windows · UEFI x64 · NTFS': {'en': 'Windows · UEFI x64 · NTFS', 'it': 'Windows · UEFI x64 · NTFS', 'fr': 'Windows · UEFI x64 · NTFS', 'de': 'Windows · UEFI x64 · NTFS', 'es': 'Windows · UEFI x64 · NTFS'},
+    'Not enough free space after formatting.': {'en': 'Not enough free space after formatting.', 'it': 'Spazio libero insufficiente dopo la formattazione.', 'fr': 'Espace libre insuffisant après le formatage.', 'de': 'Nach dem Formatieren ist nicht genügend freier Speicher verfügbar.', 'es': 'No hay suficiente espacio libre después de formatear.'},
+    'The bundled UEFI:NTFS boot files are missing or damaged. Reinstall DistroFlash.': {'en': 'The bundled UEFI:NTFS boot files are missing or damaged. Reinstall DistroFlash.', 'it': 'I file di avvio UEFI:NTFS inclusi sono mancanti o danneggiati. Reinstalla DistroFlash.', 'fr': 'Les fichiers de démarrage UEFI:NTFS inclus sont absents ou endommagés. Réinstallez DistroFlash.', 'de': 'Die mitgelieferten UEFI:NTFS-Startdateien fehlen oder sind beschädigt. Installieren Sie DistroFlash neu.', 'es': 'Los archivos de arranque UEFI:NTFS incluidos faltan o están dañados. Reinstala DistroFlash.'},
+    'The created filesystem does not match the Windows layout.': {'en': 'The created filesystem does not match the Windows layout.', 'it': 'Il filesystem creato non corrisponde alla struttura Windows prevista.', 'fr': 'Le système de fichiers créé ne correspond pas à la disposition Windows prévue.', 'de': 'Das erstellte Dateisystem entspricht nicht dem vorgesehenen Windows-Layout.', 'es': 'El sistema de archivos creado no coincide con la estructura de Windows prevista.'},
+    'Invalid Windows filename: {0}': {'en': 'Invalid Windows filename: {0}', 'it': 'Nome file Windows non valido: {0}', 'fr': 'Nom de fichier Windows non valide : {0}', 'de': 'Ungültiger Windows-Dateiname: {0}', 'es': 'Nombre de archivo de Windows no válido: {0}'},
+    'Conflicting Windows filenames: {0}': {'en': 'Conflicting Windows filenames: {0}', 'it': 'Nomi file Windows in conflitto: {0}', 'fr': 'Noms de fichiers Windows en conflit : {0}', 'de': 'Widersprüchliche Windows-Dateinamen: {0}', 'es': 'Nombres de archivo de Windows en conflicto: {0}'},
+})

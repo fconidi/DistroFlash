@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-from dataclasses import replace
 from pathlib import Path
 import os
 import shutil
@@ -10,7 +9,6 @@ import unittest
 from unittest.mock import patch
 
 from distroflash.engine import PreparedImage, copy_files, run_tool, verify_files, _write_windows
-from distroflash.images import windows_plan
 from distroflash.streams import Cancelled
 
 
@@ -30,12 +28,12 @@ class MountedDirectory:
 
 @unittest.skipUnless(shutil.which("wimlib-imagex"), "Installare wimtools")
 class WindowsIntegrationTests(unittest.TestCase):
-    def test_real_wim_split_copy_and_integrity(self):
+    def test_real_wim_is_copied_without_split_or_staging(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             payload = root/"payload"
             payload.mkdir()
-            # Several resources allow a genuine multipart archive at 1 MiB.
+            # Exercise a real archive containing several independent resources.
             for i in range(4):
                 (payload/f"data{i}").write_bytes(os.urandom(700 * 1024))
             iso_root = root/"iso"
@@ -51,35 +49,46 @@ class WindowsIntegrationTests(unittest.TestCase):
             image_file = root/"windows.iso"
             image_file.write_bytes(b"synthetic image container")
             storage = MountedDirectory(iso_root)
-            original_plan = windows_plan
-
-            def force_split(entries):
-                return replace(original_plan(entries), split_wim="sources/install.wim")
-
             def fast_tool(arguments, cancel=None):
-                self.assertNotEqual(arguments[1], "verify", "Default preparation must not decompress the WIM")
-                self.assertNotIn("--check", arguments)
+                self.assertEqual(arguments[1], "info", "Default preparation must only inspect WIM metadata")
                 return run_tool(arguments, cancel)
 
-            with patch("distroflash.engine.windows_plan", force_split), patch("distroflash.engine.WIM_PART_MIB", 1), \
-                    patch("distroflash.engine.run_tool", side_effect=fast_tool):
+            with patch("distroflash.engine.run_tool", side_effect=fast_tool):
                 image = PreparedImage(image_file, storage)
-            staging = image.entries[-1][0].parent
             try:
                 self.assertEqual(image.kind, "windows")
-                parts = [e for e in image.entries if e[1].endswith(".swm")]
-                self.assertGreater(len(parts), 1)
+                self.assertTrue(any(name == "sources/install.wim" for _, name, _ in image.entries))
+                self.assertFalse(any(name.endswith(".swm") for _, name, _ in image.entries))
                 dest = root/"usb"
                 dest.mkdir()
                 manifest = copy_files(image.entries, dest)
                 verify_files(dest, manifest)
-                run_tool(["wimlib-imagex", "verify", str(dest/"sources/install.swm"),
-                          "--ref=" + str(dest/"sources/install*.swm")])
-                self.assertFalse((dest/"sources/install.wim").exists())
+                run_tool(["wimlib-imagex", "verify", str(dest/"sources/install.wim")])
+                self.assertEqual((dest/"sources/install.wim").read_bytes(), wim.read_bytes())
             finally:
                 image.close()
             self.assertFalse(storage.active)
-            self.assertFalse(staging.exists())
+
+    def test_large_wim_preparation_never_runs_split(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root/"sources").mkdir()
+            (root/"efi/boot").mkdir(parents=True)
+            for name in ("sources/boot.wim", "sources/install.wim", "efi/boot/bootx64.efi"):
+                (root/name).write_bytes(b"fixture")
+            source = root/"image.iso"
+            source.write_bytes(b"container")
+            entries = {"sources/boot.wim": 7, "sources/install.wim": 8 * 1024**3,
+                       "efi/boot/bootx64.efi": 7}
+            def metadata_only(arguments, cancel=None):
+                self.assertEqual(arguments[1], "info")
+            with patch("distroflash.engine.scan_tree", return_value=entries), \
+                    patch("distroflash.engine.run_tool", side_effect=metadata_only):
+                image = PreparedImage(source, MountedDirectory(root))
+            try:
+                self.assertIn((root/"sources/install.wim", "sources/install.wim", 8 * 1024**3), image.entries)
+            finally:
+                image.close()
 
     def test_deep_check_detects_corrupt_payload_that_metadata_check_does_not(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -130,24 +139,25 @@ class WindowsWriteTests(unittest.TestCase):
         for corrupt in (False, True):
             with self.subTest(corrupt=corrupt), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
-                source, target = root/"source", root/"usb"
-                source.write_bytes(b"split archive bytes")
+                source, target, boot = root/"source", root/"usb", root/"boot"
+                source.write_bytes(b"original archive bytes")
                 target.mkdir()
-                image = SimpleNamespace(entries=[(source, "install.swm", source.stat().st_size)],
-                                        plan=SimpleNamespace(split_wim="sources/install.wim"))
+                boot.mkdir()
+                image = SimpleNamespace(entries=[(source, "install.wim", source.stat().st_size)],
+                                        kind="windows")
                 mounts = []
 
                 class Storage:
                     def format_windows(self, *args):
-                        return "partition"
+                        return "data", "boot"
 
                     def mount(self, part, readonly=False):
-                        mounts.append(readonly)
-                        if readonly and corrupt:
-                            data = bytearray((target/"install.swm").read_bytes())
+                        mounts.append((part, readonly))
+                        if part == "data" and readonly and corrupt:
+                            data = bytearray((target/"install.wim").read_bytes())
                             data[0] ^= 1
-                            (target/"install.swm").write_bytes(data)
-                        return target
+                            (target/"install.wim").write_bytes(data)
+                        return target if part == "data" else boot
 
                     def properties(self, *args):
                         return {"DeviceNumber": target.stat().st_dev}
@@ -161,8 +171,8 @@ class WindowsWriteTests(unittest.TestCase):
                             _write_windows(image, "device", Storage(), lambda: None, None, lambda *a: None)
                     else:
                         _write_windows(image, "device", Storage(), lambda: None, None, lambda *a: None)
-                        self.assertEqual((target/"install.swm").read_bytes(), source.read_bytes())
-                self.assertEqual(mounts, [False, True])
+                        self.assertEqual((target/"install.wim").read_bytes(), source.read_bytes())
+                self.assertEqual(mounts, [("boot", False), ("boot", True), ("data", False), ("data", True)])
 
 
 

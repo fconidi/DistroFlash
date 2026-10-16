@@ -21,27 +21,26 @@ def windows(**changes):
 
 
 class ImageTests(unittest.TestCase):
-    def test_large_wim_is_split(self):
+    def test_large_wim_is_kept_whole_for_ntfs(self):
         plan = windows_plan(windows(**{"sources/install.wim": FAT32_MAX + 1}))
-        self.assertEqual(plan.split_wim, "sources/install.wim")
+        self.assertEqual(dict(plan.files)["sources/install.wim"], FAT32_MAX + 1)
         self.assertGreater(plan.required_bytes, FAT32_MAX + 1)
 
     def test_small_wim_is_copied(self):
-        self.assertIsNone(windows_plan(windows()).split_wim)
+        self.assertEqual(dict(windows_plan(windows()).files), windows())
 
     def test_windows_paths_are_case_insensitive(self):
         self.assertIsNotNone(windows_plan({k.upper(): v for k, v in windows().items()}))
 
-    def test_large_esd_rejected_before_format(self):
+    def test_large_esd_is_supported_on_ntfs(self):
         entries = windows()
         del entries["sources/install.wim"]
         entries["sources/install.esd"] = FAT32_MAX + 1
-        with self.assertRaises(ImageError):
-            windows_plan(entries)
+        self.assertEqual(dict(windows_plan(entries).files), entries)
 
-    def test_large_unrelated_file_rejected(self):
-        with self.assertRaises(ImageError):
-            windows_plan(windows(**{"extra.bin": FAT32_MAX + 1}))
+    def test_large_additional_file_is_supported_on_ntfs(self):
+        entries = windows(**{"extra.bin": FAT32_MAX + 1})
+        self.assertEqual(dict(windows_plan(entries).files), entries)
 
     def test_missing_uefi_rejected(self):
         entries = windows()

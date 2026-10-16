@@ -10,14 +10,12 @@ import tempfile
 import time
 
 from .devices import DeviceError, snapshot, validate_device
+from .boot import boot_files
 from .files import copy_files, verify_files
-from .images import (FAT32_MAX, ImageError, is_windows, looks_like_iso,
+from .images import (ImageError, is_windows, looks_like_iso,
                      scan_tree, validate_hybrid, windows_plan)
 from .streams import Cancelled, checkpoint, copy_stream, verify_stream
 from .i18n import tr
-
-WIM_PART_MIB = 3800
-
 
 def cache_directory():
     base = (Path.home()/".cache/distroflash").resolve()
@@ -86,6 +84,7 @@ class PreparedImage:
             raise
 
     def _prepare_windows(self, cancel, status, deep_check):
+        self.boot_entries = boot_files()
         if not shutil.which("wimlib-imagex"):
             raise ImageError(tr('Windows support requires wimtools (wimlib-imagex).'))
         lookup = {name.casefold(): name for name, _ in self.plan.files}
@@ -94,25 +93,7 @@ class PreparedImage:
             if key in lookup:
                 run_tool(["wimlib-imagex", "verify" if deep_check else "info",
                           str(self.root/lookup[key])], cancel)
-        self.entries = [(self.root/name, name, size) for name, size in self.plan.files
-                        if name != self.plan.split_wim]
-        if self.plan.split_wim:
-            status(tr('Splitting install.wim for FAT32…'))
-            original = self.root/self.plan.split_wim
-            required = original.stat().st_size + 64 * 1024**2
-            if shutil.disk_usage(cache_directory()).free < required:
-                raise ImageError(tr('Not enough local cache space to split install.wim.'))
-            staging = Path(self.stack.enter_context(tempfile.TemporaryDirectory(
-                prefix="windows-", dir=cache_directory())))
-            run_tool(["wimlib-imagex", "split", str(original), str(staging/"install.swm"),
-                      str(WIM_PART_MIB)], cancel)
-            parts = sorted(staging.glob("install*.swm"))
-            if not parts or any(p.stat().st_size > FAT32_MAX for p in parts):
-                raise ImageError(tr('The WIM cannot be split into FAT32-compatible files.'))
-            parent = Path(self.plan.split_wim).parent
-            self.entries += [(part, (parent/part.name).as_posix(), part.stat().st_size) for part in parts]
-            total = sum(size for _, _, size in self.entries)
-            self.required_bytes = max(1024**3, total + total // 50 + 64 * 1024**2)
+        self.entries = [(self.root/name, name, size) for name, size in self.plan.files]
 
     def check_source(self):
         if self.closed or fingerprint(self.source.fileno()) != self.original:
@@ -174,8 +155,17 @@ def write_image(image, device, storage, cancel, report):
 
 
 def _write_windows(image, path, storage, guard, cancel, report):
-    report(tr('Preparing Windows UEFI'), 0, 0)
-    part = storage.format_windows(path, guard, lambda: checkpoint(cancel))
+    # Revalidate bundled files before any destructive operation.
+    entries = boot_files()
+    report(tr('Preparing Windows NTFS + UEFI'), 0, 0)
+    data, boot = storage.format_windows(path, guard, lambda: checkpoint(cancel))
+    _copy_partition(boot, entries, storage, cancel, report,
+                    tr('Installing UEFI:NTFS'), tr('Verifying UEFI:NTFS'))
+    _copy_partition(data, image.entries, storage, cancel, report,
+                    tr('Copying Windows'), tr('Verifying Windows'))
+
+
+def _copy_partition(part, entries, storage, cancel, report, copying, verifying):
     mounted = False
     try:
         checkpoint(cancel)
@@ -184,11 +174,11 @@ def _write_windows(image, path, storage, guard, cancel, report):
         expected = storage.properties(part, "Block")["DeviceNumber"]
         if root.stat().st_dev != expected:
             raise DeviceError(tr('The mounted filesystem does not match the created partition.'))
-        if shutil.disk_usage(root).free < sum(size for _, _, size in image.entries):
-            raise DeviceError(tr('Not enough FAT32 space after formatting.'))
-        manifest = copy_files(image.entries, root, cancel,
-                              lambda n, total: report(tr('Copying Windows'), n, total))
-        # Read back every copied file, including split archives, using its SHA256.
+        if shutil.disk_usage(root).free < sum(size for _, _, size in entries):
+            raise DeviceError(tr('Not enough free space after formatting.'))
+        manifest = copy_files(entries, root, cancel,
+                              lambda n, total: report(copying, n, total))
+        # Read back every copied file using its SHA256, including the EFI loader.
         storage.unmount(part)
         mounted = False
         checkpoint(cancel)
@@ -196,7 +186,7 @@ def _write_windows(image, path, storage, guard, cancel, report):
         mounted = True
         if root.stat().st_dev != expected:
             raise DeviceError(tr('The partition changed during verification.'))
-        verify_files(root, manifest, cancel, lambda n, total: report(tr('Verifying Windows'), n, total))
+        verify_files(root, manifest, cancel, lambda n, total: report(verifying, n, total))
     finally:
         if mounted:
             storage.unmount(part)

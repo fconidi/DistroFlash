@@ -26,6 +26,7 @@ def main():
             shutil.copyfile(module, package/module.name)
         logo = source/"src/distroflash/logo.svg"
         shutil.copyfile(logo, package/"logo.svg")
+        shutil.copytree(source/"src/distroflash/uefi", package/"uefi")
         icons = root/"usr/share/icons/hicolor/scalable/apps"
         icons.mkdir(parents=True)
         shutil.copyfile(logo, icons/"org.syslinuxos.DistroFlash.svg")
@@ -41,13 +42,15 @@ def main():
         docs.mkdir(parents=True)
         shutil.copyfile(source/"LICENSE", docs/"copyright")
         shutil.copyfile(source/"README.md", docs/"README.md")
+        shutil.copyfile(source/"THIRD-PARTY.md", docs/"THIRD-PARTY.md")
+        shutil.copytree(source/"licenses", docs/"licenses")
         control = root/"DEBIAN"
         control.mkdir()
         (control/"control").write_text(
             f"Package: distroflash\nVersion: {version}\nArchitecture: all\n"
             "Section: utils\nPriority: optional\n"
             "Maintainer: Franco Conidi <fconidi@gmail.com>\n"
-            "Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-3.0, udisks2 (>= 2.9), util-linux, dosfstools, wimtools\n"
+            "Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-3.0, udisks2 (>= 2.9), util-linux, dosfstools, ntfs-3g, wimtools\n"
             "Recommends: polkit-1-auth-agent\n"
             "Homepage: https://github.com/fconidi/DistroFlash\n"
             "Description: Create Linux and Windows bootable USB media\n"

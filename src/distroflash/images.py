@@ -16,7 +16,6 @@ class ImageError(ValueError):
 @dataclass(frozen=True)
 class WindowsPlan:
     files: tuple[tuple[str, int], ...]
-    split_wim: str | None
     required_bytes: int
 
 
@@ -32,11 +31,11 @@ def windows_plan(entries: dict[str, int]) -> WindowsPlan:
             if (any(c in part for c in '\\:*?"<>|') or part.endswith((".", " "))
                     or any(ord(c) < 32 for c in part)
                     or len(part.encode("utf-16-le")) > 510):
-                raise ImageError(tr('Name incompatible with FAT32: {0}').format(name))
+                raise ImageError(tr('Invalid Windows filename: {0}').format(name))
             component = "/".join(path.parts[:index + 1])
             key = component.casefold()
             if key in components and components[key] != component:
-                raise ImageError(tr('Conflicting names on FAT32: {0}').format(name))
+                raise ImageError(tr('Conflicting Windows filenames: {0}').format(name))
             components[key] = component
         key = name.casefold()
         if key in names:
@@ -48,18 +47,13 @@ def windows_plan(entries: dict[str, int]) -> WindowsPlan:
     payloads = [names[k] for k in ("sources/install.wim", "sources/install.esd") if k in names]
     if len(payloads) != 1:
         raise ImageError(tr('Exactly one sources/install.wim or install.esd is required.'))
-    split = None
     for name, size in entries.items():
         if size == 0 and name.casefold() in (*required, "sources/install.wim", "sources/install.esd"):
             raise ImageError(tr('Empty Windows file: {0}').format(name))
-        if size > FAT32_MAX:
-            if name.casefold() != "sources/install.wim":
-                raise ImageError(tr('File exceeds the FAT32 limit: {0}. Only install.wim can be split.').format(name))
-            split = name
     if any(k.startswith("sources/install") and k.endswith(".swm") for k in names):
         raise ImageError(tr('ISOs with existing .swm files are not supported in this version.'))
     total = sum(entries.values())
-    return WindowsPlan(tuple(sorted(entries.items())), split, max(1024**3, total + total // 50 + 64 * MIB))
+    return WindowsPlan(tuple(sorted(entries.items())), max(1024**3, total + total // 50 + 64 * MIB))
 
 
 def scan_tree(root: Path) -> dict[str, int]:

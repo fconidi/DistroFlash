@@ -12,9 +12,10 @@ operations. No telemetry or online account is required.
 
 - **Linux:** hybrid USB-bootable ISO files and uncompressed IMG, RAW or BIN images.
 - **Windows:** standard Windows 10/11 x64 installation ISOs with UEFI boot files.
-  The device receives a GPT partition table and a FAT32 EFI System Partition.
-  Large `sources/install.wim` files are split into `install.swm`, `install2.swm`, etc.
-  Other files above the FAT32 limit, including oversized `install.esd`, are rejected.
+  The device receives a GPT partition table, a main NTFS partition containing the
+  original Windows files, and a small FAT EFI System Partition with the bundled
+  UEFI:NTFS loader and NTFS driver. Files above 4 GiB are copied whole; no WIM
+  splitting, recompression or temporary payload staging is needed.
 
 The initial version targets Windows **UEFI x64**. Windows legacy BIOS, ARM64,
 custom ISOs and existing split-WIM source layouts are not supported. Firmware and
@@ -26,7 +27,7 @@ policy; universal boot compatibility is not guaranteed. There is no persistence.
 On Debian, Ubuntu or SysLinuxOS, install the downloaded Debian package:
 
 ```sh
-sudo apt install ./distroflash_0.1.1_all.deb
+sudo apt install ./distroflash_0.2.0_all.deb
 ```
 
 Launch **DistroFlash** from the applications menu or run `distroflash`.
@@ -36,7 +37,7 @@ agent must be available.
 To run directly from the source directory:
 
 ```sh
-sudo apt install python3-gi gir1.2-gtk-3.0 udisks2 dosfstools wimtools util-linux
+sudo apt install python3-gi gir1.2-gtk-3.0 udisks2 dosfstools ntfs-3g wimtools util-linux
 PYTHONPATH=src /usr/bin/python3 -m distroflash
 ```
 
@@ -52,18 +53,20 @@ The package is written to `~/.cache/distroflash/packages/`.
 3. Select **Write and verify**, then type the displayed device path to confirm erasure.
 4. Wait for verification to finish, then use **Eject**.
 
-Every written file is read back and checked with SHA256, including split Windows
-archives. This confirms the copy matches its source. The optional deep check also
-detects corruption inside the source Windows archives; metadata checks alone do not.
+Every written file is read back and checked with SHA256, including Windows
+archives and the UEFI:NTFS boot components. This confirms the copy matches its
+source. The optional deep check also detects corruption inside the source Windows
+archives; metadata checks alone do not.
 
 **All data on the selected destination will be erased.** Cancellation leaves the
 media incomplete; recreate it before use. Internal disks, devices with active
 storage mappings, Btrfs filesystems, system mounts and the source-image device
 are excluded. Refresh the device list after connecting or removing media.
 
-Large Windows WIM files need temporary free space in `~/.cache/distroflash/` roughly
-equal to the WIM size. Temporary split files are removed when the image is released
-or the application closes normally.
+Windows image selection performs a quick content and archive-metadata check.
+Copying starts after device selection and confirmation; no multi-gigabyte
+preparation files are created. UEFI:NTFS is included for offline use.
+See [third-party components](THIRD-PARTY.md) for source and license information.
 
 ## Languages
 
@@ -80,7 +83,8 @@ USB/SD devices without changing them.
 
 DistroFlash crea chiavette USB Linux e Windows con interfaccia GTK, controlli sui
 dispositivi e verifica finale. Le ISO Windows vengono preparate per **UEFI x64**;
-i file `install.wim` grandi vengono suddivisi automaticamente. Nessuna persistenza.
+i file originali vengono copiati interi su NTFS, senza suddivisione WIM. Una piccola
+partizione FAT contiene UEFI:NTFS per l’avvio. Nessuna persistenza.
 La lingua viene rilevata automaticamente, con inglese predefinito e supporto
 italiano, francese, tedesco e spagnolo.
 La preparazione Windows usa controlli rapidi dei metadati; il controllo approfondito
