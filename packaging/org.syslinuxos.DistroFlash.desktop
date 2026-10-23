@@ -9,6 +9,6 @@ Comment[es]=Escribe imágenes de Linux y Windows en dispositivos USB
 Exec=distroflash
 Icon=org.syslinuxos.DistroFlash
 Terminal=false
-Categories=System;
+Categories=System;X-SysLinuxOS-Tools;
 StartupNotify=true
 Keywords=USB;ISO;Windows;Linux;flash;

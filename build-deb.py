@@ -38,6 +38,9 @@ def main():
         desktop.mkdir(parents=True)
         shutil.copyfile(source/"packaging/org.syslinuxos.DistroFlash.desktop",
                         desktop/"org.syslinuxos.DistroFlash.desktop")
+        menu = root/"etc/xdg/menus/applications-merged"
+        menu.mkdir(parents=True)
+        shutil.copyfile(source/"packaging/distroflash.menu", menu/"distroflash.menu")
         docs = root/"usr/share/doc/distroflash"
         docs.mkdir(parents=True)
         shutil.copyfile(source/"LICENSE", docs/"copyright")
@@ -46,6 +49,7 @@ def main():
         shutil.copytree(source/"licenses", docs/"licenses")
         control = root/"DEBIAN"
         control.mkdir()
+        (control/"conffiles").write_text("/etc/xdg/menus/applications-merged/distroflash.menu\n")
         (control/"control").write_text(
             f"Package: distroflash\nVersion: {version}\nArchitecture: all\n"
             "Section: utils\nPriority: optional\n"
