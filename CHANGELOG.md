@@ -3,6 +3,7 @@
 ## 0.2.2
 
 - Use the system title bar so window controls follow the desktop's window decoration theme.
+- Show the launcher in the SysLinuxOS Tools application menu.
 
 ## 0.2.1
 
