@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3
+
+- Add a Close button after a successful write and verification.
+
 ## 0.2.2
 
 - Use the system title bar so window controls follow the desktop's window decoration theme.

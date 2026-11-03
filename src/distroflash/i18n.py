@@ -34,6 +34,7 @@ MESSAGES = {
                       'fr': 'Écrire et vérifier', 'de': 'Schreiben und prüfen', 'es': 'Escribir y verificar'},
  '_Write and verify': {'en': '_Write and verify', 'it': '_Scrivi e verifica',
                        'fr': 'Écrire et _vérifier', 'de': '_Schreiben und prüfen', 'es': '_Escribir y verificar'},
+ '_Close': {'en': '_Close', 'it': '_Chiudi', 'fr': '_Fermer', 'de': '_Schließen', 'es': '_Cerrar'},
  'Invalid image path: {0}': {'it': 'Percorso immagine non valido: {0}',
                              'en': 'Invalid image path: {0}',
                              'fr': 'Chemin d’image invalide : {0}',

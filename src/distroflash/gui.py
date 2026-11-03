@@ -76,6 +76,7 @@ class Window(Gtk.ApplicationWindow):
         self.cancel = threading.Event()
         self.last_report = 0
         self.indeterminate = False
+        self.write_complete = False
         self.phase = ""
         self.phase_started = time.monotonic()
         self.connect("delete-event", self.on_close)
@@ -147,6 +148,10 @@ class Window(Gtk.ApplicationWindow):
         self.stop = Gtk.Button.new_with_mnemonic(tr('_Cancel'))
         self.stop.connect("clicked", self.stop_work)
         row.pack_start(self.stop, False, False, 0)
+        self.close_button = Gtk.Button.new_with_mnemonic(tr('_Close'))
+        self.close_button.set_no_show_all(True)
+        self.close_button.connect("clicked", lambda *_: self.close())
+        row.pack_end(self.close_button, False, False, 0)
         self.start = Gtk.Button.new_with_mnemonic(tr('_Write and verify'))
         self.start.get_style_context().add_class("suggested-action")
         self.start.connect("clicked", self.start_write)
@@ -194,6 +199,8 @@ class Window(Gtk.ApplicationWindow):
         self.eject.set_sensitive(not self.busy and target is not None)
         self.start.set_sensitive(not self.busy and target is not None and self.image is not None)
         self.stop.set_sensitive(self.busy and not self.cancel.is_set())
+        self.close_button.set_visible(self.write_complete)
+        self.close_button.set_sensitive(not self.busy)
 
     def pulse(self):
         if self.busy and self.indeterminate:
@@ -275,6 +282,7 @@ class Window(Gtk.ApplicationWindow):
         dialog.destroy()
         if response != Gtk.ResponseType.OK:
             return
+        self.write_complete = False
         previous, self.image = self.image, None
 
         def prepare():
@@ -386,8 +394,14 @@ class Window(Gtk.ApplicationWindow):
         dialog.destroy()
         if response != Gtk.ResponseType.OK:
             return
+        self.write_complete = False
+
+        def complete(_):
+            self.write_complete = True
+            self.status.set_text(tr('Writing and verification complete. You can eject the device.'))
+
         self.launch(lambda: write_image(self.image, device, UDisks(), self.cancel, self.report),
-                    lambda _: self.status.set_text(tr('Writing and verification complete. You can eject the device.')),
+                    complete,
                     tr('Final device check…'))
 
     def stop_work(self, *_):
