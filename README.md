@@ -20,14 +20,15 @@ operations. No telemetry or online account is required.
 The initial version targets Windows **UEFI x64**. Windows legacy BIOS, ARM64,
 custom ISOs and existing split-WIM source layouts are not supported. Firmware and
 Secure Boot compatibility depend on the original Windows boot files and firmware
-policy; universal boot compatibility is not guaranteed. There is no persistence.
+policy; universal boot compatibility is not guaranteed. There is no persistence; for a persistent live USB use
+[DistroClone USB](https://github.com/fconidi/distroClone-usb).
 
 ## Installation
 
 On Debian, Ubuntu or SysLinuxOS, install the downloaded Debian package:
 
 ```sh
-sudo apt install ./distroflash_0.2.3_all.deb
+sudo apt install ./distroflash_0.2.4_all.deb
 ```
 
 Launch **DistroFlash** from the applications menu or run `distroflash`.
@@ -84,7 +85,8 @@ USB/SD devices without changing them.
 DistroFlash crea chiavette USB Linux e Windows con interfaccia GTK, controlli sui
 dispositivi e verifica finale. Le ISO Windows vengono preparate per **UEFI x64**;
 i file originali vengono copiati interi su NTFS, senza suddivisione WIM. Una piccola
-partizione FAT contiene UEFI:NTFS per l’avvio. Nessuna persistenza.
+partizione FAT contiene UEFI:NTFS per l’avvio. Nessuna persistenza: per una USB live persistente usa
+[DistroClone USB](https://github.com/fconidi/distroClone-usb).
 La lingua viene rilevata automaticamente, con inglese predefinito e supporto
 italiano, francese, tedesco e spagnolo.
 La preparazione Windows usa controlli rapidi dei metadati; il controllo approfondito

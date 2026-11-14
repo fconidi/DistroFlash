@@ -141,7 +141,7 @@ class Window(Gtk.ApplicationWindow):
         writing.pack_start(self.status, False, False, 0)
         self.bar = Gtk.ProgressBar(show_text=True)
         writing.pack_start(self.bar, False, False, 0)
-        warning = self.label(tr('Writing erases the selected device. No persistence.'))
+        warning = self.label(tr('Writing erases the selected device. No persistence: for a persistent live USB use DistroClone USB.'))
         warning.get_style_context().add_class("hint")
         writing.pack_start(warning, False, False, 0)
         row = Gtk.Box(spacing=8)

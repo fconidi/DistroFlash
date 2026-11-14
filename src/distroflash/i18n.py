@@ -424,16 +424,17 @@ MESSAGES = {
                           'fr': '3. _Écrire et vérifier',
                           'de': '3. _Schreiben und prüfen',
                           'es': '3. _Escribir y verificar'},
- 'Writing erases the selected device. No persistence.': {'it': 'La scrittura cancella il dispositivo '
-                                                               'selezionato. Nessuna persistenza.',
-                                                         'en': 'Writing erases the selected device. No '
-                                                               'persistence.',
-                                                         'fr': 'L’écriture efface le périphérique '
-                                                               'sélectionné. Sans persistance.',
-                                                         'de': 'Das Schreiben löscht das ausgewählte Gerät. '
-                                                               'Keine Persistenz.',
-                                                         'es': 'La escritura borra el dispositivo '
-                                                               'seleccionado. Sin persistencia.'},
+ 'Writing erases the selected device. No persistence: for a persistent live USB use DistroClone USB.': {
+    'it': 'La scrittura cancella il dispositivo selezionato. Nessuna persistenza: per una USB live '
+          'persistente usa DistroClone USB.',
+    'en': 'Writing erases the selected device. No persistence: for a persistent live USB use '
+          'DistroClone USB.',
+    'fr': 'L’écriture efface le périphérique sélectionné. Sans persistance : pour une clé USB live '
+          'persistante, utilisez DistroClone USB.',
+    'de': 'Das Schreiben löscht das ausgewählte Gerät. Keine Persistenz: Für einen persistenten '
+          'Live-USB-Stick verwenden Sie DistroClone USB.',
+    'es': 'La escritura borra el dispositivo seleccionado. Sin persistencia: para una USB live '
+          'persistente use DistroClone USB.'},
  'Operation not completed': {'it': 'Operazione non completata',
                              'en': 'Operation not completed',
                              'fr': 'Opération non terminée',

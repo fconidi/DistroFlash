@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.4
+
+- Point to DistroClone USB for persistent live USB drives in the write warning and the README.
+
 ## 0.2.3
 
 - Add a Close button after a successful write and verification.
